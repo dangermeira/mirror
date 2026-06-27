@@ -1,0 +1,35 @@
+# ---- Secrets & environment ----
+# Never commit real secrets or machine-specific config.
+# We commit a ".env.example" instead (added later) to document required keys.
+.env
+.env.*
+!.env.example
+
+# ---- Python (backend) ----
+# __pycache__ / *.pyc: compiled bytecode Python generates automatically
+__pycache__/
+*.py[cod]
+# .venv / venv: the virtual environment where installed packages live
+.venv/
+venv/
+*.egg-info/
+
+# ---- Node / frontend ----
+# node_modules: downloaded npm packages — huge, and regenerable from package.json
+node_modules/
+# dist: production build output (generated, not source)
+dist/
+*.local
+
+# ---- OS & editor noise ----
+# .DS_Store: macOS folder metadata files
+.DS_Store
+# .idea: JetBrains editor settings
+.idea/
+# .vscode: ignore editor settings...
+.vscode/*
+# ...but keep a shared recommended-extensions file if we add one
+!.vscode/extensions.json
+
+# ---- Logs ----
+*.log
