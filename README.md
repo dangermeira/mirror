@@ -17,13 +17,21 @@ games can be slotted in later, but the current focus is Overwatch 2 only.
 ```
 mirror/
 ├── frontend/   # React + TypeScript app (the UI)
-└── backend/    # FastAPI app (API + caching + the data adapter)
+├── backend/    # FastAPI app (API + caching + the data adapter)
+└── docs/       # project overview, architecture, plan, decisions, glossary
 ```
+
+## Docs
+
+- [Project overview](docs/project-overview.md) — what it is, why, and the visual direction
+- [Architecture](docs/architecture.md) — the data pipeline and how it stays multi-game-ready
+- [Development plan](docs/development-plan.md) — phases and build order
+- [Decisions](docs/decisions.md) — why the key choices were made
 
 ## Status
 
-🚧 Phase 1 — Overwatch 2 MVP, in active development.
+Phase 1 — Overwatch 2 MVP, in active development. (Quickstart and a screenshot land once there's a running app.)
 
----
+## License
 
-This is a learning project: my first full-stack app, built to understand each piece as it's made.
+MIT — see [LICENSE](LICENSE).
