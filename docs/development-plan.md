@@ -1,7 +1,7 @@
 # Mirror — Development Plan
 
-> **Current status:** Phase 1, Step 1 (skeleton & Git) ✅ done. **Next:** Step 2 — backend, one fake-data endpoint.
-> _Last reviewed: 2026-06-27_
+> **Current status:** Phase 1, Step 2 (backend fake endpoint) ✅ done. **Next:** Step 3 — wire in the real OverFast adapter.
+> _Last reviewed: 2026-06-28_
 
 This doc holds **intent and ordering** — what we're building and in what sequence. It
 does *not* describe how the code currently works (that's [`architecture.md`](architecture.md)).
@@ -20,7 +20,7 @@ provides.
 
 - [x] **1. Project skeleton & Git** — `frontend/` + `backend/`, repo initialized, pushed
   to GitHub. *Done when: the repo is on GitHub with the structure in place.*
-- [ ] **2. Backend: one fake endpoint** — FastAPI running, returns *hardcoded* stats.
+- [x] **2. Backend: one fake endpoint** — FastAPI running, returns *hardcoded* stats.
   *Done when: the auto-docs page returns fake stats for a username.*
 - [ ] **3. Backend: the real adapter** — wire in OverFast, map its data into the
   canonical shape. *Done when: a real username returns real, canonical-shaped stats.*

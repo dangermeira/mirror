@@ -8,6 +8,15 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-06-28 — Canonical shape implemented as nested Pydantic models.**
+Options: one flat model with all fields · a universal core model with a nested
+game-shaped sub-model.
+Why: nesting the OW2 fields inside a `stats` sub-model on the universal
+`PlayerProfile` keeps universal and game-specific fields separate, so adding a
+second game means adding a stats sub-model (and later a union) — not reshaping
+the core. This is the multi-game "seam" built early; machinery comes with game #2.
+Lives in `backend/models.py`.
+
 **2026-06-27 — Split the docs: a tiny `CLAUDE.md` router + a `/docs` folder.**
 Options: one big CLAUDE.md (original) · split into a router + on-demand docs.
 Why: `CLAUDE.md` auto-loads every session, so a big one wastes context on every turn; a

@@ -1,6 +1,6 @@
 # Mirror — Architecture
 
-> _Last verified: 2026-06-27 (pre-code; the canonical shape is provisional until the first real OverFast response.)_
+> _Last verified: 2026-06-28 (canonical shape implemented in `backend/models.py`; still provisional until validated against the first real OverFast response in build step 3.)_
 
 The durable "how the system works" doc. **Read this before any backend, adapter, or
 data-shape work, or before adding a new game/source.**
@@ -36,6 +36,9 @@ Browser (React)  ->  Our Backend (FastAPI)  ->  Third-party API (OverFast)
 
 > ⚠️ Provisional — confirm against the first real OverFast response (build step 3).
 > Treat as a sketch, not law.
+>
+> _Now implemented as Pydantic models in `backend/models.py`: the universal
+> `PlayerProfile` with a nested `OverwatchStats` sub-model._
 
 Keep **universal** fields (true for any game) separate from **game-shaped** fields
 (OW2-specific), so game #2 doesn't force a rewrite of the core:

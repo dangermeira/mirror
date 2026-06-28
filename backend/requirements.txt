@@ -1,0 +1,5 @@
+# Mirror backend dependencies. Rebuild the sandbox with:
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r requirements.txt
+fastapi==0.138.1
+uvicorn[standard]==0.49.0
