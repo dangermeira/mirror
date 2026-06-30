@@ -8,6 +8,17 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-06-29 — Real OverFast adapter: `adapters/` package, pure mapping split from I/O, validated live.**
+Options: flat module vs an `adapters/` package · "overall" (all gamemodes) vs
+competitive-only stats · write a test now vs defer.
+Why: an `adapters/` package makes the swappable-source seam *physical* (game #2 = a new
+file, no rewrite); "overall" matches the project's "overall win rate" wording; a unit test
+on the *pure* `_to_canonical` (no network) was cheap and pins the mapping. Split
+`fetch_player` (async I/O) from `_to_canonical` (pure mapping) so the logic is testable
+offline — verified by 4 passing tests **and** a live call against `TeKrop-2217`.
+Learned: `async`/`await` earns its keep when work is **I/O-bound** (awaiting the network),
+and isolating pure logic from I/O is exactly what makes it unit-testable.
+
 **2026-06-28 — Canonical shape implemented as nested Pydantic models.**
 Options: one flat model with all fields · a universal core model with a nested
 game-shaped sub-model.

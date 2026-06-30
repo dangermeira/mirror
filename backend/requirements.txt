@@ -3,3 +3,5 @@
 #   .venv/bin/pip install -r requirements.txt
 fastapi==0.138.1
 uvicorn[standard]==0.49.0
+httpx==0.28.1       # outbound HTTP client the adapter uses to call OverFast
+pydantic==2.13.4    # imported directly in models.py — declare direct dependencies

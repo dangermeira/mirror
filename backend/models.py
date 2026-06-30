@@ -32,7 +32,7 @@ class OverwatchStats(BaseModel):
     """The OW2-specific portion of a profile."""
 
     ranks: list[RoleRank]
-    win_rate: float  # percentage, 0-100
+    win_rate: float | None  # percentage 0-100; None when the player has 0 games
     top_heroes: list[HeroUsage]
 
 
