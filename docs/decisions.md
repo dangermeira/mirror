@@ -8,6 +8,17 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-07-01 — Step 3 code review: fixed 4 findings, consciously deferred 2.**
+A high-effort `/code-review` (3 independent reviewers) surfaced ~8 items. Fixed now:
+null-safe hero sort (+ regression test); require both OverFast calls to be 200 so a failed
+stats call can't fake an empty-but-"successful" profile; concurrent calls via
+`asyncio.gather`; made `_to_canonical` pure (timestamp passed in, not read from the clock)
+so the full mapping is unit-testable. Deferred on purpose: (a) `BASE_URL`/timeout stay
+hardcoded constants — OverFast is keyless so no secret is exposed; externalize to config
+when the app goes public. (b) Ranks are PC-competitive only (console-only players show
+none) — accepted MVP scope. The full error taxonomy + cache remain Step 4.
+Learned: review surfaces *decisions*, not just bugs — deferrals get recorded, not dropped.
+
 **2026-06-29 — Real OverFast adapter: `adapters/` package, pure mapping split from I/O, validated live.**
 Options: flat module vs an `adapters/` package · "overall" (all gamemodes) vs
 competitive-only stats · write a test now vs defer.

@@ -7,6 +7,7 @@ Two responsibilities, deliberately kept apart:
   purity is what makes it trivial to unit-test (see test_overfast.py).
 """
 
+import asyncio
 from datetime import datetime, timezone
 
 import httpx
@@ -27,25 +28,35 @@ async def fetch_player(username: str) -> PlayerProfile:
     """
     player_id = username.replace("#", "-")
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=10.0) as client:
-        summary_resp = await client.get(f"/players/{player_id}/summary")
-        stats_resp = await client.get(f"/players/{player_id}/stats/summary")
-
-    # Minimal guard for now. Step 4 replaces this with the canonical error taxonomy
-    # (NOT_FOUND / PRIVATE / RATE_LIMITED / SOURCE_DOWN) mapped to friendly states.
-    if summary_resp.status_code != 200:
-        raise HTTPException(
-            status_code=summary_resp.status_code,
-            detail=f"OverFast returned {summary_resp.status_code} for '{username}'.",
+        # Both calls are independent, so fire them concurrently and wait for both:
+        # asyncio.gather starts them at once → total wait ≈ the slower one, not the sum.
+        summary_resp, stats_resp = await asyncio.gather(
+            client.get(f"/players/{player_id}/summary"),
+            client.get(f"/players/{player_id}/stats/summary"),
         )
 
-    summary = summary_resp.json()
-    # A private profile still returns 200 on /summary but empty stats — tolerate that.
-    stats = stats_resp.json() if stats_resp.status_code == 200 else {}
-    return _to_canonical(username, summary, stats)
+    # Minimal guard for now: BOTH calls must return 200. A genuinely private profile
+    # still returns 200 with an empty stats body (handled fine below); a non-200 is a
+    # real error (rate-limited, source-down), so we raise rather than fake an
+    # empty-but-"successful" profile. Step 4 maps these to friendly states
+    # (NOT_FOUND / PRIVATE / RATE_LIMITED / SOURCE_DOWN).
+    for resp in (summary_resp, stats_resp):
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail=f"OverFast returned {resp.status_code} for '{username}'.",
+            )
+
+    # Read the clock here (the I/O "edge"), then hand it to the pure mapping.
+    fetched_at = datetime.now(timezone.utc)
+    return _to_canonical(username, summary_resp.json(), stats_resp.json(), fetched_at)
 
 
-def _to_canonical(username: str, summary: dict, stats: dict) -> PlayerProfile:
-    """Pure mapping: OverFast's JSON -> our canonical PlayerProfile. No network here."""
+def _to_canonical(
+    username: str, summary: dict, stats: dict, last_updated: datetime
+) -> PlayerProfile:
+    """Pure mapping: inputs in, a PlayerProfile out — no network and no clock read, so
+    the same inputs always produce the same output (fully unit-testable)."""
     general = stats.get("general") or {}
     return PlayerProfile(
         username=username,
@@ -53,7 +64,7 @@ def _to_canonical(username: str, summary: dict, stats: dict) -> PlayerProfile:
         avatar_url=summary.get("avatar") or PLACEHOLDER_AVATAR,
         source="overfast",
         game="overwatch2",
-        last_updated=datetime.now(timezone.utc),
+        last_updated=last_updated,
         stats=OverwatchStats(
             ranks=_extract_ranks(summary),
             win_rate=general.get("winrate"),
@@ -79,7 +90,7 @@ def _extract_top_heroes(stats: dict) -> list[HeroUsage]:
     heroes = stats.get("heroes") or {}
     by_playtime = sorted(
         heroes.items(),
-        key=lambda kv: kv[1].get("time_played", 0),
+        key=lambda kv: kv[1].get("time_played") or 0,
         reverse=True,
     )
     return [
