@@ -21,6 +21,7 @@ React, TypeScript, Vite, Tailwind (frontend); FastAPI, httpx, Pydantic (backend)
 - `docs/project-overview.md` — what/why/vibe/visual-design.
 - `docs/architecture.md` — pipeline, canonical shape, adapter, adding a game. **Read before backend/data work.**
 - `docs/development-plan.md` — phases and build order. **Read before starting/finishing a step.**
+- `docs/ways-of-working.md` — the build loop, git/PR workflow, engineering practices, deliberate AI use. **Read before starting a step.**
 - `docs/decisions.md` — the "why" behind choices; append on each decision.
 - `docs/glossary.md` — plain-language terms.
 

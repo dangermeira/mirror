@@ -9,6 +9,8 @@
 # __pycache__ / *.pyc: compiled bytecode Python generates automatically
 __pycache__/
 *.py[cod]
+# .pytest_cache: pytest's run cache (regenerated every run)
+.pytest_cache/
 # .venv / venv: the virtual environment where installed packages live
 .venv/
 venv/
