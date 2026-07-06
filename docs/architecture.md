@@ -57,6 +57,12 @@ Every adapter maps whatever the source returns into one of these fixed states:
 `NOT_FOUND` · `PRIVATE` · `RATE_LIMITED` · `SOURCE_DOWN` (+ a generic `UNKNOWN`
 fallback). The frontend has exactly one friendly message per state.
 
+> Implemented in `backend/errors.py` (`SourceState`, `STATE_META`, `SourceError`, and the
+> pure `classify_status`). Adapters raise `SourceError(state)`; a single exception handler
+> in `backend/main.py` renders it as an HTTP error status + `{state, message}` JSON. OW2
+> mapping: `404 → NOT_FOUND`; `429 → RATE_LIMITED`; `>=500` / network / timeout →
+> `SOURCE_DOWN`; empty stats body → `PRIVATE` (heuristic — OverFast exposes no privacy flag).
+
 ## Adding a new game/source (future checklist)
 
 1. Write a new adapter that maps the source → the canonical shape.
@@ -70,7 +76,8 @@ fallback). The frontend has exactly one friendly message per state.
 - **Config:** all environment-specific values in `.env` (git-ignored); a `.env.example`
   documents required keys.
 - **Caching:** in-memory with a TTL for the MVP; may graduate to Redis if the app goes
-  public.
+  public. Implemented as a generic `TTLCache` (injectable clock) in `backend/cache.py`; the
+  route caches successful lookups under `game:source:id` keys (5-min TTL).
 - **Testing:** light/manual for the MVP; automated tests added as complexity grows.
 
 ## Build now vs. designed-for-later

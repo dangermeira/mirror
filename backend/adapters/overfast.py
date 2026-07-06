@@ -11,8 +11,8 @@ import asyncio
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import HTTPException
 
+from errors import SourceError, SourceState, classify_status
 from models import HeroUsage, OverwatchStats, PlayerProfile, RoleRank
 
 BASE_URL = "https://overfast-api.tekrop.fr"
@@ -27,29 +27,48 @@ async def fetch_player(username: str) -> PlayerProfile:
     `username` is a BattleTag like "Player#1234"; OverFast wants the "#" as a "-".
     """
     player_id = username.replace("#", "-")
-    async with httpx.AsyncClient(base_url=BASE_URL, timeout=10.0) as client:
-        # Both calls are independent, so fire them concurrently and wait for both:
-        # asyncio.gather starts them at once → total wait ≈ the slower one, not the sum.
-        summary_resp, stats_resp = await asyncio.gather(
-            client.get(f"/players/{player_id}/summary"),
-            client.get(f"/players/{player_id}/stats/summary"),
-        )
+    try:
+        async with httpx.AsyncClient(base_url=BASE_URL, timeout=10.0) as client:
+            # Both calls are independent, so fire them concurrently and wait for both:
+            # asyncio.gather starts them at once → total wait ≈ the slower one, not the sum.
+            summary_resp, stats_resp = await asyncio.gather(
+                client.get(f"/players/{player_id}/summary"),
+                client.get(f"/players/{player_id}/stats/summary"),
+            )
+    except httpx.RequestError as exc:
+        # Connection refused, DNS failure, or timeout — the source is effectively down.
+        raise SourceError(SourceState.SOURCE_DOWN) from exc
 
-    # Minimal guard for now: BOTH calls must return 200. A genuinely private profile
-    # still returns 200 with an empty stats body (handled fine below); a non-200 is a
-    # real error (rate-limited, source-down), so we raise rather than fake an
-    # empty-but-"successful" profile. Step 4 maps these to friendly states
-    # (NOT_FOUND / PRIVATE / RATE_LIMITED / SOURCE_DOWN).
+    # BOTH calls must return 200. Map any non-200 to a canonical failure state instead of
+    # faking an empty-but-"successful" profile (classify_status turns e.g. 404 -> NOT_FOUND).
     for resp in (summary_resp, stats_resp):
         if resp.status_code != 200:
-            raise HTTPException(
-                status_code=resp.status_code,
-                detail=f"OverFast returned {resp.status_code} for '{username}'.",
-            )
+            raise SourceError(classify_status(resp.status_code))
+
+    try:
+        summary = summary_resp.json()
+        stats = stats_resp.json()
+    except ValueError as exc:
+        # A 200 whose body isn't valid JSON (e.g. an HTML error/maintenance page from a
+        # proxy) means the source misbehaved — treat it as down rather than crashing.
+        raise SourceError(SourceState.SOURCE_DOWN) from exc
+
+    # A private career returns 200 with an empty stats body — surface it as its own state
+    # rather than a valid-but-empty profile. (Heuristic; see docs/decisions.md.)
+    if is_private(stats):
+        raise SourceError(SourceState.PRIVATE)
 
     # Read the clock here (the I/O "edge"), then hand it to the pure mapping.
     fetched_at = datetime.now(timezone.utc)
-    return _to_canonical(username, summary_resp.json(), stats_resp.json(), fetched_at)
+    return _to_canonical(username, summary, stats, fetched_at)
+
+
+def is_private(stats: dict) -> bool:
+    """True when a 200 response carries no usable stats — OverFast's signal for a private
+    career. Pure, so it's unit-testable. Heuristic: indistinguishable from a brand-new
+    public account with zero recorded stats (documented in docs/decisions.md).
+    """
+    return not stats.get("general") and not stats.get("heroes")
 
 
 def _to_canonical(
