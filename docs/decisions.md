@@ -8,6 +8,37 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-07-04 — Step 4 code review: fixed 2, deferred 5.**
+Three independent reviewers ran on the diff. Fixed now: (1) `classify_status` maps the whole
+4xx band to `NOT_FOUND` (was: only 404; any other 4xx fell through to `UNKNOWN → 502`, a
+*client* problem shown as a *server* error); (2) guarded `.json()` so a 200 with a non-JSON
+body becomes `SOURCE_DOWN` instead of an uncaught 500 that escapes the taxonomy. A live probe
+*refuted* the reviewers' headline scenario (OverFast returns 404, not 422, for malformed
+names), but the mapping hardening stands on its own. Deferred (recorded, not dropped): cache
+**stampede** (concurrent cold misses both fetch — a per-key lock / in-flight future fixes it;
+matters once the React frontend double-renders); **no negative cache / backoff** (a 429/503
+isn't cached, so we keep hammering a throttled source); **unbounded cache growth** (no
+LRU/sweep; hits also share one object by reference — safe today, freeze models later);
+**username normalization** (whitespace/case → duplicate cache keys; centralize the `#`→`-`
+transform); and route-level **HTTP-mocked tests** for `fetch_player`'s raising paths.
+Learned: verify a finding's concrete scenario before fixing (the 422 wasn't real), but a
+robustness fix can still be worth keeping; record deferrals so they're decisions, not misses.
+
+**2026-07-04 — Step 4: canonical error taxonomy + in-memory TTL cache.**
+Options: failures as **real HTTP error statuses** + a typed `{state, message}` body vs an
+"always-200 envelope". Chose HTTP statuses (404/403/429/503/502) — standard REST, tools and
+devtools understand the status, and a browser `fetch` doesn't crash on 4xx/5xx. Adapters
+raise `SourceError(SourceState)`; one FastAPI exception handler is the single place a state
+becomes an HTTP response. Kept the tricky logic in **pure** functions (`classify_status`,
+`is_private`) so it's unit-tested with no network. Cache: a generic `TTLCache` with an
+**injectable clock** (testable without waiting), keys namespaced `game:source:id`, only
+successes cached, 5-min TTL. PRIVATE is a **heuristic** — OverFast exposes no privacy flag
+(verified live), so an empty stats body reads as private, which can't be told apart from a
+brand-new public account with zero stats. Deferred: httpx connection pooling via lifespan,
+HTTP-mocked adapter tests, config externalization.
+Learned: model failures as first-class data, and keep the clock/network at the edges so the
+decision logic stays pure and testable.
+
 **2026-07-01 — Step 3 code review: fixed 4 findings, consciously deferred 2.**
 A high-effort `/code-review` (3 independent reviewers) surfaced ~8 items. Fixed now:
 null-safe hero sort (+ regression test); require both OverFast calls to be 200 so a failed

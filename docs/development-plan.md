@@ -1,7 +1,7 @@
 # Mirror — Development Plan
 
-> **Current status:** Phase 1, Step 3 (real OverFast adapter) ✅ done. **Next:** Step 4 — caching + the four failure states.
-> _Last reviewed: 2026-06-29_
+> **Current status:** Phase 1, Step 4 (caching + the four failure states) ✅ done. **Next:** Step 5 — React + Tailwind shell.
+> _Last reviewed: 2026-07-04_
 
 This doc holds **intent and ordering** — what we're building and in what sequence. It
 does *not* describe how the code currently works (that's [`architecture.md`](architecture.md)).
@@ -24,7 +24,7 @@ provides.
   *Done when: the auto-docs page returns fake stats for a username.*
 - [x] **3. Backend: the real adapter** — wire in OverFast, map its data into the
   canonical shape. *Done when: a real username returns real, canonical-shaped stats.*
-- [ ] **4. Backend: caching + failure handling** — TTL cache + the four error states.
+- [x] **4. Backend: caching + failure handling** — TTL cache + the four error states.
   *Done when: repeat calls hit cache and each failure returns its friendly state.*
 - [ ] **5. Frontend: React + Tailwind shell** — scaffold the app, Tailwind working,
   search bar + empty dark layout. *Done when: the shell renders and Tailwind styles apply.*

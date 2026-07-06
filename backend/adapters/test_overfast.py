@@ -8,7 +8,7 @@ assertable. Run from the backend/ directory with:  .venv/bin/python -m pytest
 
 from datetime import datetime, timezone
 
-from adapters.overfast import _to_canonical
+from adapters.overfast import _to_canonical, is_private
 
 # A fixed timestamp so the tests are fully deterministic.
 FIXED_TIME = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -64,8 +64,11 @@ def test_top_heroes_sorted_by_playtime_desc():
     assert profile.stats.top_heroes[0].playtime_hours == 170.4
 
 
-def test_private_profile_is_tolerated():
-    """A private profile comes back as 200 with empty stats — must not crash."""
+def test_empty_stats_map_to_an_empty_profile():
+    """Defense in depth: the pure mapper tolerates an empty stats body (no crash, empty
+    fields). The PRIVATE decision now happens upstream in fetch_player via is_private, so
+    _to_canonical isn't reached for a private profile — but it stays tolerant anyway.
+    """
     profile = _to_canonical("Private#1234", {"username": "Private"}, {}, FIXED_TIME)
 
     assert profile.stats.win_rate is None
@@ -92,3 +95,11 @@ def test_null_time_played_does_not_crash():
 
     assert names == ["Ana", "Echo"]  # null treated as 0, sorted below Ana
     assert profile.stats.top_heroes[1].playtime_hours == 0.0
+
+
+def test_is_private_detects_empty_stats():
+    """An empty stats body reads as private; a populated one does not."""
+    assert is_private({}) is True
+    assert is_private({"general": {}, "heroes": {}}) is True
+    assert is_private({"general": {"winrate": 50.0}, "heroes": {}}) is False
+    assert is_private({"heroes": {"ana": {"time_played": 100}}}) is False
