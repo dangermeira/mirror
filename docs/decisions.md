@@ -8,6 +8,19 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-07-07 — Step 5: Tailwind v4 via Vite plugin; single-file static shell; built-in tokens.**
+Options: the old v3 flow (`tailwind.config.js` + PostCSS + `@tailwind` directives) vs the v4
+setup (`@tailwindcss/vite` plugin + one `@import "tailwindcss";`) · components/state now vs a
+single-file static shell · custom theme tokens vs Tailwind's built-in `slate`/`orange`.
+Why: v4 is the currently documented setup — two wires instead of three config files (most
+online tutorials still show the outdated v3 flow). The shell stays one component (`App.tsx`)
+with zero handlers or state, because nothing is interactive yet — components and state arrive
+in Step 6 when the search earns them. Exact visual tokens are pinned in `docs/style-guide.md`
+(authored now, against real components): slate-950/900/800 surfaces, one orange accent, dark
+text on orange (white fails contrast), 4px-grid spacing, left-aligned `max-w-2xl` column.
+Learned: Tailwind is a build-time *scanner* (class labels in source → generated CSS out); the
+browser only ever receives plain CSS and has never heard of Tailwind.
+
 **2026-07-04 — Step 4 code review: fixed 2, deferred 5.**
 Three independent reviewers ran on the diff. Fixed now: (1) `classify_status` maps the whole
 4xx band to `NOT_FOUND` (was: only 404; any other 4xx fell through to `UNKNOWN → 502`, a

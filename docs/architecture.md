@@ -72,7 +72,10 @@ fallback). The frontend has exactly one friendly message per state.
 
 ## Conventions
 
-- **Structure:** `frontend/` (React + TS + Vite + Tailwind), `backend/` (FastAPI).
+- **Structure:** `frontend/` (React + TS + Vite + Tailwind v4, scaffolded in step 5 — Vite
+  serves/translates on :5173 with the `@tailwindcss/vite` plugin; the UI is a single static
+  component in `src/App.tsx` for now; visual tokens live in [`style-guide.md`](style-guide.md)),
+  `backend/` (FastAPI on :8000).
 - **Config:** all environment-specific values in `.env` (git-ignored); a `.env.example`
   documents required keys.
 - **Caching:** in-memory with a TTL for the MVP; may graduate to Redis if the app goes
