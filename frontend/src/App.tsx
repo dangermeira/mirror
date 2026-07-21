@@ -19,6 +19,8 @@ function App() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const battletag = query.trim()
+    // The loading guard is load-bearing: the button stays enabled (aria-disabled
+    // keeps keyboard focus alive), so this line is what blocks double-submits.
     if (!battletag || search.status === 'loading') return
     setSearch({ status: 'loading', battletag })
     const result = await searchPlayer(battletag)
@@ -51,8 +53,8 @@ function App() {
             />
             <button
               type="submit"
-              disabled={search.status === 'loading'}
-              className="h-10 rounded-md bg-orange-500 px-5 text-sm font-medium text-slate-950 transition-colors hover:bg-orange-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50"
+              aria-disabled={search.status === 'loading'}
+              className="h-10 rounded-md bg-orange-500 px-5 text-sm font-medium text-slate-950 transition-colors hover:bg-orange-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-slate-950 aria-disabled:opacity-50"
             >
               Search
             </button>
@@ -60,25 +62,29 @@ function App() {
         </section>
 
         <section
-          className={
-            search.status === 'success'
-              ? 'mt-16 rounded-lg border border-slate-800 p-6 text-left'
-              : 'mt-16 rounded-lg border border-slate-800 py-16 text-center'
-          }
+          className={`mt-16 rounded-lg border border-slate-800 ${
+            search.status === 'success' ? 'p-6 text-left' : 'py-16 text-center'
+          }`}
           aria-label="Results"
-          aria-live="polite"
         >
-          {search.status === 'idle' && (
-            <p className="text-sm text-slate-500">Search a player to see their stats.</p>
-          )}
-          {search.status === 'loading' && (
-            <p className="animate-pulse text-sm text-slate-500">
-              Looking up {search.battletag}…
-            </p>
-          )}
-          {search.status === 'error' && (
-            <p className="text-sm text-slate-400">{search.message}</p>
-          )}
+          {/* Live region carries only short status lines — announcing the whole
+              card would read every stat aloud. The card is normal content. */}
+          <div aria-live="polite">
+            {search.status === 'idle' && (
+              <p className="text-sm text-slate-500">Search a player to see their stats.</p>
+            )}
+            {search.status === 'loading' && (
+              <p className="animate-pulse text-sm text-slate-500">
+                Looking up {search.battletag}…
+              </p>
+            )}
+            {search.status === 'error' && (
+              <p className="text-sm text-slate-400">{search.message}</p>
+            )}
+            {search.status === 'success' && (
+              <p className="sr-only">Stats loaded for {search.profile.display_name}.</p>
+            )}
+          </div>
           {search.status === 'success' && <PlayerCard profile={search.profile} />}
         </section>
       </main>

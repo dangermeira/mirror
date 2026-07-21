@@ -24,12 +24,18 @@ TOP_HEROES_COUNT = 5
 PLACEHOLDER_AVATAR = "https://placehold.co/128x128"
 
 
+def to_player_id(username: str) -> str:
+    """BattleTag → OverFast player id: the "#" becomes a "-". The single home
+    for this transform — the route's cache key builds on it too."""
+    return username.replace("#", "-")
+
+
 async def fetch_player(username: str) -> PlayerProfile:
     """Fetch a player's OW2 profile from OverFast and return our canonical shape.
 
     `username` is a BattleTag like "Player#1234"; OverFast wants the "#" as a "-".
     """
-    player_id = username.replace("#", "-")
+    player_id = to_player_id(username)
     # One line per upstream trip: this is how cache behavior stays observable.
     logger.info("fetching %s from OverFast", player_id)
     try:

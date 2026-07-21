@@ -1,46 +1,71 @@
 import type { PlayerProfile } from "./types"
 
+// The backend's failure states, plus the one only the frontend can see.
+export type FailureState =
+  | "NOT_FOUND"
+  | "PRIVATE"
+  | "RATE_LIMITED"
+  | "SOURCE_DOWN"
+  | "UNKNOWN"
+  | "UNREACHABLE"
+
 // Every outcome of a search — success, a {state, message} failure from the
-// backend, an unreadable body, or no backend at all — is converted into this
-// one type, so the UI never parses errors itself.
+// backend, an unreadable body, or no readable response at all — is converted
+// into this one type, so the UI never parses errors itself.
 export type SearchResult =
   | { ok: true; profile: PlayerProfile }
-  | { ok: false; message: string }
+  | { ok: false; state: FailureState; message: string }
 
-// Substituted by Vite at build time; the fallback covers a missing .env.
-const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
+// Substituted by Vite at build time. `||` (not `??`) so an empty value in
+// .env also falls back; the trailing-slash trim keeps the path well-formed.
+const API_BASE_URL: string = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+).replace(/\/+$/, "")
 
-const FALLBACK_MESSAGE = "Something went wrong fetching those stats."
+const REQUEST_TIMEOUT_MS = 10_000 // mirrors the backend's own upstream timeout
+
+const UNREADABLE_MESSAGE = "The backend sent a response we couldn't read."
 const UNREACHABLE_MESSAGE = "Can't reach Mirror's backend — is it running?"
 
 export async function searchPlayer(battletag: string): Promise<SearchResult> {
   // "#" would start a URL fragment and never be sent — encode it to %23.
-  const playerId = encodeURIComponent(battletag.trim())
+  // (App.tsx owns input normalization; the value arrives trimmed.)
+  const playerId = encodeURIComponent(battletag)
 
   let response: Response
   try {
-    response = await fetch(`${API_BASE_URL}/player/${playerId}`)
+    response = await fetch(`${API_BASE_URL}/player/${playerId}`, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
   } catch {
-    // fetch rejects only when there is no response at all (backend not
-    // running). No body exists, so the message must be our own.
-    return { ok: false, message: UNREACHABLE_MESSAGE }
+    // No readable response. Usually the backend isn't running — but a CORS
+    // block or a timeout rejects identically; the browser tells code nothing
+    // about why (the real reason appears only in the devtools console).
+    return { ok: false, state: "UNREACHABLE", message: UNREACHABLE_MESSAGE }
   }
 
   if (!response.ok) {
-    // The backend's exception handler sends {state, message} — pass the
-    // message through. Guard the shape: a non-JSON or unexpected body
-    // falls back to a generic line.
+    // The backend's exception handler sends {state, message} — pass both
+    // through. Guard the shape: a non-JSON or differently-shaped body (e.g.
+    // FastAPI's own {detail} responses) becomes UNKNOWN with our own text.
     try {
       const body = await response.json()
-      const message = typeof body.message === "string" ? body.message : FALLBACK_MESSAGE
-      return { ok: false, message }
+      if (typeof body.state === "string" && typeof body.message === "string") {
+        return { ok: false, state: body.state as FailureState, message: body.message }
+      }
+      return { ok: false, state: "UNKNOWN", message: UNREADABLE_MESSAGE }
     } catch {
-      return { ok: false, message: FALLBACK_MESSAGE }
+      return { ok: false, state: "UNKNOWN", message: UNREADABLE_MESSAGE }
     }
   }
 
-  // 200: response_model already validated this shape on the server — we type
-  // it and read it with no runtime checks of our own.
-  const profile: PlayerProfile = await response.json()
-  return { ok: true, profile }
+  try {
+    // response_model validated this shape on the server; the annotation holds
+    // our code to it. The parse itself can still fail (truncated body, a
+    // non-backend server answering 200) — that must not escape this seam.
+    const profile: PlayerProfile = await response.json()
+    return { ok: true, profile }
+  } catch {
+    return { ok: false, state: "UNKNOWN", message: UNREADABLE_MESSAGE }
+  }
 }

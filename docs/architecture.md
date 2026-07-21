@@ -63,9 +63,10 @@ fallback). The frontend has exactly one friendly message per state.
 > in `backend/main.py` renders it as an HTTP error status + `{state, message}` JSON. OW2
 > mapping: `404 → NOT_FOUND`; `429 → RATE_LIMITED`; `>=500` / network / timeout →
 > `SOURCE_DOWN`; empty stats body → `PRIVATE` (heuristic — OverFast exposes no privacy flag).
-> Frontend side (step 6): `src/api.ts` passes the backend's `message` through unchanged —
-> `STATE_META` stays the single home of failure copy — and adds the one state the backend
-> can't speak for: backend unreachable → a fixed message written in the frontend.
+> Frontend side (step 6): `src/api.ts` passes the backend's `state` and `message` through
+> unchanged — `STATE_META` stays the home of backend failure copy — and authors the two
+> texts the backend can't provide: backend unreachable (`UNREACHABLE`, a frontend-only
+> state) and an unreadable/differently-shaped response (mapped to `UNKNOWN`).
 
 ## Adding a new game/source (future checklist)
 
@@ -83,7 +84,8 @@ fallback). The frontend has exactly one friendly message per state.
   tokens live in [`style-guide.md`](style-guide.md)), `backend/` (FastAPI on :8000, CORS
   allowlisting the dev frontend origins, GET only).
 - **Config:** all environment-specific values in `.env` (git-ignored); a `.env.example`
-  documents required keys.
+  documents required keys. Current keys: `VITE_API_BASE_URL` (frontend) and
+  `MIRROR_ALLOWED_ORIGINS` (backend CORS allowlist, read from the process environment).
 - **Caching:** in-memory with a TTL for the MVP; may graduate to Redis if the app goes
   public. Implemented as a generic `TTLCache` (injectable clock) in `backend/cache.py`; the
   route caches successful lookups under `game:source:id` keys (5-min TTL). Same-key

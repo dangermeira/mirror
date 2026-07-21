@@ -1,6 +1,7 @@
 """Route-level tests for main.py."""
 
 import asyncio
+from collections import defaultdict
 
 import main
 from cache import TTLCache
@@ -20,7 +21,11 @@ def test_concurrent_cold_misses_fetch_upstream_once(monkeypatch):
         return {"fake": "profile"}
 
     monkeypatch.setattr(main, "fetch_player", fake_fetch)
-    monkeypatch.setattr(main, "player_cache", TTLCache(ttl_seconds=300))
+    monkeypatch.setattr(main, "player_cache", TTLCache(ttl_seconds=main.CACHE_TTL_SECONDS))
+    # Fresh locks too: an asyncio.Lock binds to the event loop that first
+    # contends it, so reusing the module-global map across asyncio.run() calls
+    # would poison later same-key tests with a lock bound to a dead loop.
+    monkeypatch.setattr(main, "_key_locks", defaultdict(asyncio.Lock))
 
     async def run_pair():
         return await asyncio.gather(

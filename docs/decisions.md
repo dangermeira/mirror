@@ -8,6 +8,35 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-07-21 — Step 6 code review: fixed 12, deferred 4.**
+A max-effort multi-angle review (10 finders, adversarial verification, fresh-eyes sweep)
+surfaced 15 confirmed findings. Fixed now: the unguarded success-path `response.json()`
+(a 200 with a non-JSON body wedged the UI in `loading` permanently — proven live against
+Vite's SPA fallback); a fetch timeout (`AbortSignal.timeout`, mirroring the backend's 10s);
+the test left a loop-bound `asyncio.Lock` in module state (reproduced RuntimeError —
+locks are reset per test now); CORS origins moved to `MIRROR_ALLOWED_ORIGINS` env with dev
+defaults (config invariant) + Vite `strictPort` so the page origin can't silently drift off
+the allowlist; base-URL hardening (`||` for empty strings, trailing-slash trim); logging
+scoped (root WARNING, adapter INFO — httpx was tripling our one-line-per-trip goal);
+`aria-live` now carries only short status lines (announcing the whole card was a
+screen-reader monologue) and the button uses `aria-disabled` so keyboard focus survives
+searches (the handler guard, not the disabled attribute, blocks double-submits);
+`SearchResult` now carries `state` through (failures stay first-class end to end,
+`UNREACHABLE` added frontend-side); the unreadable-body fallback got its own wording
+(it was a verbatim copy of `STATE_META[UNKNOWN]` — copy has one home again); one
+`to_player_id()` helper owns the `#`→`-` transform (route + adapter both call it).
+Deferred (recorded, not dropped): the per-key lock **serializes failing lookups** (never
+cached → each waiter retries in turn — N× latency when the source is down) and the lock
+map **never shrinks** (~450 B per key ever searched, typos included) — one fix covers
+both, an in-flight future map whose entry dies with the request burst; revisit before any
+multi-user deployment. Dash/hash spelling merge accepted (the cached `username` echoes the
+first spelling searched; dedup is worth it). Hand-maintained `types.ts` mirror kept for
+the learning phase (a generator from `/openapi.json` exists when drift risk grows).
+Process note: five frontend commits shipped without their docs — docs ride the same
+commit from Step 7 on.
+Learned: a review at full effort finds real bugs in code that "works" — the wedge, the
+focus drop, and the loop-bound lock were all invisible to manual testing.
+
 **2026-07-21 — Step 6: frontend error-copy pass-through; conscious deferrals.**
 Options for UI failure text: re-map `state` to frontend-owned copy vs pass the backend's
 `message` through. Chose pass-through: `STATE_META` stays the one home of failure copy,
