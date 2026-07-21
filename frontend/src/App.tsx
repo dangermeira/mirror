@@ -1,4 +1,14 @@
+import { useState, type FormEvent } from 'react'
+import { searchPlayer } from './api'
+
 function App() {
+  const [query, setQuery] = useState('')
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    console.log(await searchPlayer(query))
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <main className="mx-auto max-w-2xl px-6 py-16">
@@ -10,20 +20,22 @@ function App() {
         </header>
 
         <section className="mt-10" aria-label="Player search">
-          <div className="flex gap-3">
+          <form className="flex gap-3" onSubmit={handleSubmit}>
             <input
               type="text"
               aria-label="BattleTag"
               placeholder="Enter a BattleTag, e.g. TeKrop#2217"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
               className="h-10 min-w-0 flex-1 rounded-md border border-slate-800 bg-slate-900 px-4 text-sm placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-orange-500"
             />
             <button
-              type="button"
+              type="submit"
               className="h-10 rounded-md bg-orange-500 px-5 text-sm font-medium text-slate-950 transition-colors hover:bg-orange-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-slate-950"
             >
               Search
             </button>
-          </div>
+          </form>
         </section>
 
         <section
