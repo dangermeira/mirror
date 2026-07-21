@@ -8,6 +8,21 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-07-21 — Step 6: CORS middleware over a Vite proxy; frontend env config.**
+Options: `CORSMiddleware` on the backend with an explicit origin allowlist vs a Vite dev
+proxy (`/api` → `:8000`) that sidesteps cross-origin entirely. Chose the middleware: it is
+the production-real mechanism (a proxy hides the browser's same-origin policy in dev-only
+config), and the allowlist names exactly who may read us — `localhost:5173` and
+`127.0.0.1:5173` are listed separately because an origin is a string triple
+(scheme+host+port), not a network address. GET only (least privilege). Config:
+`VITE_API_BASE_URL` in `frontend/.env` (git-ignored; documented by a committed
+`.env.example`), substituted into the JavaScript at build time — so frontend env files
+hold configuration only, never secrets. Learned (observed live, not read): the browser
+sends the cross-origin request and the server answers it — the block happens at *reading*
+the response; and from the page code's view a CORS block is indistinguishable from a dead
+backend (both are a rejected fetch), which is why the block must be lifted rather than
+handled in code.
+
 **2026-07-07 — Step 5: Tailwind v4 via Vite plugin; single-file static shell; built-in tokens.**
 Options: the old v3 flow (`tailwind.config.js` + PostCSS + `@tailwind` directives) vs the v4
 setup (`@tailwindcss/vite` plugin + one `@import "tailwindcss";`) · components/state now vs a

@@ -1,6 +1,7 @@
 """Mirror backend — FastAPI app entry point."""
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from adapters.overfast import fetch_player
@@ -11,6 +12,14 @@ from models import PlayerProfile
 # `app` is the application object uvicorn runs. FastAPI auto-builds the
 # interactive docs at /docs from the routes we register below.
 app = FastAPI(title="Mirror API")
+
+# The browser releases our responses to a cross-origin page only if we name the
+# page's origin here. Dev frontend origins only; the API serves nothing but GET.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["GET"],
+)
 
 # One process-wide cache so repeat searches skip OverFast. Keys are namespaced by
 # game + source (per architecture.md) so a second game can't collide with OW2 entries.
