@@ -8,6 +8,24 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-07-21 — Step 6: cache stampede closed with a per-key lock (Step-4 deferral).**
+Options: leave deferred · one global lock · per-key `asyncio.Lock` with double-checked
+caching · an in-flight future map. Chose the per-key lock + re-check: cache hits never
+touch a lock; only same-key cold misses queue; and the re-check inside the lock is what
+converts "two serialized duplicate trips" into "one trip + one reader." Method: observed
+live first (two parallel curls on a cold key → two `fetching … from OverFast` log lines),
+fixed, re-observed (→ one line); pinned by `test_main.py`, which forces real overlap with
+a zero-second yield inside the fake fetch — a test that would pass without the lock proves
+nothing. Corrected along the way: the original deferral's trigger ("StrictMode will double
+the first fetch") was wrong for our design — StrictMode doubles renders and effects, not
+event handlers, and our fetch runs in a submit handler. The lock dict grows one entry per
+key (same accepted unbounded-growth family as the cache). Also added permanently: one INFO
+log line per upstream trip in the adapter — the observability that made the stampede
+visible at all.
+Learned: concurrent cold misses can't see each other's in-flight work; locks without
+re-checks only serialize waste; observe a bug before fixing it, and make the regression
+test force the exact overlap it claims to test.
+
 **2026-07-21 — Step 6: CORS middleware over a Vite proxy; frontend env config.**
 Options: `CORSMiddleware` on the backend with an explicit origin allowlist vs a Vite dev
 proxy (`/api` → `:8000`) that sidesteps cross-origin entirely. Chose the middleware: it is

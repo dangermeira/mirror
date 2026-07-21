@@ -1,5 +1,9 @@
 """Mirror backend — FastAPI app entry point."""
 
+import asyncio
+import logging
+from collections import defaultdict
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,6 +15,9 @@ from models import PlayerProfile
 
 # `app` is the application object uvicorn runs. FastAPI auto-builds the
 # interactive docs at /docs from the routes we register below.
+# Give our own modules' log lines a handler so they print alongside uvicorn's.
+logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(title="Mirror API")
 
 # The browser releases our responses to a cross-origin page only if we name the
@@ -25,6 +32,11 @@ app.add_middleware(
 # game + source (per architecture.md) so a second game can't collide with OW2 entries.
 CACHE_TTL_SECONDS = 300  # 5 minutes — career stats don't change second-to-second
 player_cache = TTLCache(ttl_seconds=CACHE_TTL_SECONDS)
+
+# One lock per cache key: simultaneous cold misses for the same player queue here
+# so only the first does the OverFast trip (stampede fix — see docs/decisions.md).
+# Grows one entry per key, like the cache itself — accepted for the MVP.
+_key_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
 @app.exception_handler(SourceError)
@@ -58,6 +70,13 @@ async def get_player(username: str):
     if cached is not None:
         return cached
 
-    profile = await fetch_player(username)
-    player_cache.set(cache_key, profile)
-    return profile
+    async with _key_locks[cache_key]:
+        # Re-check: while we waited for the lock, the request ahead of us may
+        # have fetched and stored this exact profile.
+        cached = player_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        profile = await fetch_player(username)
+        player_cache.set(cache_key, profile)
+        return profile

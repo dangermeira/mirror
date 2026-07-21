@@ -8,12 +8,15 @@ Two responsibilities, deliberately kept apart:
 """
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 
 import httpx
 
 from errors import SourceError, SourceState, classify_status
 from models import HeroUsage, OverwatchStats, PlayerProfile, RoleRank
+
+logger = logging.getLogger(__name__)
 
 BASE_URL = "https://overfast-api.tekrop.fr"
 ROLES = ("tank", "damage", "support")
@@ -27,6 +30,8 @@ async def fetch_player(username: str) -> PlayerProfile:
     `username` is a BattleTag like "Player#1234"; OverFast wants the "#" as a "-".
     """
     player_id = username.replace("#", "-")
+    # One line per upstream trip: this is how cache behavior stays observable.
+    logger.info("fetching %s from OverFast", player_id)
     try:
         async with httpx.AsyncClient(base_url=BASE_URL, timeout=10.0) as client:
             # Both calls are independent, so fire them concurrently and wait for both:
