@@ -1,12 +1,31 @@
 import { useState, type FormEvent } from 'react'
 import { searchPlayer } from './api'
+import type { PlayerProfile } from './types'
+
+// The UI's fixed set of states — the frontend twin of the backend's failure
+// taxonomy. The compiler narrows by `status`, so each panel below can only
+// read the fields its state actually has.
+type SearchState =
+  | { status: 'idle' }
+  | { status: 'loading'; battletag: string }
+  | { status: 'error'; message: string }
+  | { status: 'success'; profile: PlayerProfile }
 
 function App() {
   const [query, setQuery] = useState('')
+  const [search, setSearch] = useState<SearchState>({ status: 'idle' })
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    console.log(await searchPlayer(query))
+    const battletag = query.trim()
+    if (!battletag || search.status === 'loading') return
+    setSearch({ status: 'loading', battletag })
+    const result = await searchPlayer(battletag)
+    setSearch(
+      result.ok
+        ? { status: 'success', profile: result.profile }
+        : { status: 'error', message: result.message },
+    )
   }
 
   return (
@@ -31,7 +50,8 @@ function App() {
             />
             <button
               type="submit"
-              className="h-10 rounded-md bg-orange-500 px-5 text-sm font-medium text-slate-950 transition-colors hover:bg-orange-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+              disabled={search.status === 'loading'}
+              className="h-10 rounded-md bg-orange-500 px-5 text-sm font-medium text-slate-950 transition-colors hover:bg-orange-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50"
             >
               Search
             </button>
@@ -41,8 +61,27 @@ function App() {
         <section
           className="mt-16 rounded-lg border border-slate-800 py-16 text-center"
           aria-label="Results"
+          aria-live="polite"
         >
-          <p className="text-sm text-slate-500">Search a player to see their stats.</p>
+          {search.status === 'idle' && (
+            <p className="text-sm text-slate-500">Search a player to see their stats.</p>
+          )}
+          {search.status === 'loading' && (
+            <p className="animate-pulse text-sm text-slate-500">
+              Looking up {search.battletag}…
+            </p>
+          )}
+          {search.status === 'error' && (
+            <p className="text-sm text-slate-400">{search.message}</p>
+          )}
+          {search.status === 'success' && (
+            <p className="text-sm text-slate-100">
+              {search.profile.display_name} — win rate:{' '}
+              {search.profile.stats.win_rate === null
+                ? 'no games recorded'
+                : `${search.profile.stats.win_rate}%`}
+            </p>
+          )}
         </section>
       </main>
     </div>
