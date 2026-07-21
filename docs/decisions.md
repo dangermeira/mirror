@@ -8,6 +8,79 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-07-21 — Step 6 code review: fixed 12, deferred 4.**
+A max-effort multi-angle review (10 finders, adversarial verification, fresh-eyes sweep)
+surfaced 15 confirmed findings. Fixed now: the unguarded success-path `response.json()`
+(a 200 with a non-JSON body wedged the UI in `loading` permanently — proven live against
+Vite's SPA fallback); a fetch timeout (`AbortSignal.timeout`, mirroring the backend's 10s);
+the test left a loop-bound `asyncio.Lock` in module state (reproduced RuntimeError —
+locks are reset per test now); CORS origins moved to `MIRROR_ALLOWED_ORIGINS` env with dev
+defaults (config invariant) + Vite `strictPort` so the page origin can't silently drift off
+the allowlist; base-URL hardening (`||` for empty strings, trailing-slash trim); logging
+scoped (root WARNING, adapter INFO — httpx was tripling our one-line-per-trip goal);
+`aria-live` now carries only short status lines (announcing the whole card was a
+screen-reader monologue) and the button uses `aria-disabled` so keyboard focus survives
+searches (the handler guard, not the disabled attribute, blocks double-submits);
+`SearchResult` now carries `state` through (failures stay first-class end to end,
+`UNREACHABLE` added frontend-side); the unreadable-body fallback got its own wording
+(it was a verbatim copy of `STATE_META[UNKNOWN]` — copy has one home again); one
+`to_player_id()` helper owns the `#`→`-` transform (route + adapter both call it).
+Deferred (recorded, not dropped): the per-key lock **serializes failing lookups** (never
+cached → each waiter retries in turn — N× latency when the source is down) and the lock
+map **never shrinks** (~450 B per key ever searched, typos included) — one fix covers
+both, an in-flight future map whose entry dies with the request burst; revisit before any
+multi-user deployment. Dash/hash spelling merge accepted (the cached `username` echoes the
+first spelling searched; dedup is worth it). Hand-maintained `types.ts` mirror kept for
+the learning phase (a generator from `/openapi.json` exists when drift risk grows).
+Process note: five frontend commits shipped without their docs — docs ride the same
+commit from Step 7 on.
+Learned: a review at full effort finds real bugs in code that "works" — the wedge, the
+focus drop, and the loop-bound lock were all invisible to manual testing.
+
+**2026-07-21 — Step 6: frontend error-copy pass-through; conscious deferrals.**
+Options for UI failure text: re-map `state` to frontend-owned copy vs pass the backend's
+`message` through. Chose pass-through: `STATE_META` stays the one home of failure copy,
+and the frontend adds only the two sentences the backend can't speak (unreachable, and an
+unreadable failure body). Deferred on purpose (recorded, not dropped): frontend runtime
+response validation (zod etc.) — `response_model` guarantees the wire shape and the TS
+types hold our code to it; `AbortController`/stale-response handling for rapid
+re-searches — the overlap window is small and same-key results are identical (revisit
+with Step 7 UX); username normalization beyond `.trim()` (still deferred from Step 4).
+Learned: an error message is data with one home — pass it along, never copy it.
+
+**2026-07-21 — Step 6: cache stampede closed with a per-key lock (Step-4 deferral).**
+Options: leave deferred · one global lock · per-key `asyncio.Lock` with double-checked
+caching · an in-flight future map. Chose the per-key lock + re-check: cache hits never
+touch a lock; only same-key cold misses queue; and the re-check inside the lock is what
+converts "two serialized duplicate trips" into "one trip + one reader." Method: observed
+live first (two parallel curls on a cold key → two `fetching … from OverFast` log lines),
+fixed, re-observed (→ one line); pinned by `test_main.py`, which forces real overlap with
+a zero-second yield inside the fake fetch — a test that would pass without the lock proves
+nothing. Corrected along the way: the original deferral's trigger ("StrictMode will double
+the first fetch") was wrong for our design — StrictMode doubles renders and effects, not
+event handlers, and our fetch runs in a submit handler. The lock dict grows one entry per
+key (same accepted unbounded-growth family as the cache). Also added permanently: one INFO
+log line per upstream trip in the adapter — the observability that made the stampede
+visible at all.
+Learned: concurrent cold misses can't see each other's in-flight work; locks without
+re-checks only serialize waste; observe a bug before fixing it, and make the regression
+test force the exact overlap it claims to test.
+
+**2026-07-21 — Step 6: CORS middleware over a Vite proxy; frontend env config.**
+Options: `CORSMiddleware` on the backend with an explicit origin allowlist vs a Vite dev
+proxy (`/api` → `:8000`) that sidesteps cross-origin entirely. Chose the middleware: it is
+the production-real mechanism (a proxy hides the browser's same-origin policy in dev-only
+config), and the allowlist names exactly who may read us — `localhost:5173` and
+`127.0.0.1:5173` are listed separately because an origin is a string triple
+(scheme+host+port), not a network address. GET only (least privilege). Config:
+`VITE_API_BASE_URL` in `frontend/.env` (git-ignored; documented by a committed
+`.env.example`), substituted into the JavaScript at build time — so frontend env files
+hold configuration only, never secrets. Learned (observed live, not read): the browser
+sends the cross-origin request and the server answers it — the block happens at *reading*
+the response; and from the page code's view a CORS block is indistinguishable from a dead
+backend (both are a rejected fetch), which is why the block must be lifted rather than
+handled in code.
+
 **2026-07-07 — Step 5: Tailwind v4 via Vite plugin; single-file static shell; built-in tokens.**
 Options: the old v3 flow (`tailwind.config.js` + PostCSS + `@tailwind` directives) vs the v4
 setup (`@tailwindcss/vite` plugin + one `@import "tailwindcss";`) · components/state now vs a

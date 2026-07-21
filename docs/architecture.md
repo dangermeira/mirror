@@ -1,6 +1,7 @@
 # Mirror — Architecture
 
 > _Last verified: 2026-06-29 (canonical shape in `backend/models.py`, validated against a real OverFast response via `backend/adapters/overfast.py` in build step 3.)_
+> _Step 6 (2026-07-21): the frontend now consumes the pipeline live — verified end to end in the browser, all failure states included._
 
 The durable "how the system works" doc. **Read this before any backend, adapter, or
 data-shape work, or before adding a new game/source.**
@@ -62,6 +63,10 @@ fallback). The frontend has exactly one friendly message per state.
 > in `backend/main.py` renders it as an HTTP error status + `{state, message}` JSON. OW2
 > mapping: `404 → NOT_FOUND`; `429 → RATE_LIMITED`; `>=500` / network / timeout →
 > `SOURCE_DOWN`; empty stats body → `PRIVATE` (heuristic — OverFast exposes no privacy flag).
+> Frontend side (step 6): `src/api.ts` passes the backend's `state` and `message` through
+> unchanged — `STATE_META` stays the home of backend failure copy — and authors the two
+> texts the backend can't provide: backend unreachable (`UNREACHABLE`, a frontend-only
+> state) and an unreadable/differently-shaped response (mapped to `UNKNOWN`).
 
 ## Adding a new game/source (future checklist)
 
@@ -72,15 +77,20 @@ fallback). The frontend has exactly one friendly message per state.
 
 ## Conventions
 
-- **Structure:** `frontend/` (React + TS + Vite + Tailwind v4, scaffolded in step 5 — Vite
-  serves/translates on :5173 with the `@tailwindcss/vite` plugin; the UI is a single static
-  component in `src/App.tsx` for now; visual tokens live in [`style-guide.md`](style-guide.md)),
-  `backend/` (FastAPI on :8000).
+- **Structure:** `frontend/` (React + TS + Vite + Tailwind v4 on :5173 — `src/types.ts`
+  mirrors the canonical shape field for field; `src/api.ts` is the single fetch seam,
+  converting every request outcome into one `SearchResult`; `src/components/PlayerCard.tsx`
+  renders success; `App.tsx` holds the idle/loading/error/success state machine; visual
+  tokens live in [`style-guide.md`](style-guide.md)), `backend/` (FastAPI on :8000, CORS
+  allowlisting the dev frontend origins, GET only).
 - **Config:** all environment-specific values in `.env` (git-ignored); a `.env.example`
-  documents required keys.
+  documents required keys. Current keys: `VITE_API_BASE_URL` (frontend) and
+  `MIRROR_ALLOWED_ORIGINS` (backend CORS allowlist, read from the process environment).
 - **Caching:** in-memory with a TTL for the MVP; may graduate to Redis if the app goes
   public. Implemented as a generic `TTLCache` (injectable clock) in `backend/cache.py`; the
-  route caches successful lookups under `game:source:id` keys (5-min TTL).
+  route caches successful lookups under `game:source:id` keys (5-min TTL). Same-key
+  concurrent cold misses are serialized by a per-key `asyncio.Lock` with an in-lock
+  re-check (stampede fix, step 6); each real upstream trip logs one INFO line.
 - **Testing:** light/manual for the MVP; automated tests added as complexity grows.
 
 ## Build now vs. designed-for-later
