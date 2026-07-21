@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { searchPlayer } from './api'
+import { PlayerCard } from './components/PlayerCard'
 import type { PlayerProfile } from './types'
 
 // The UI's fixed set of states — the frontend twin of the backend's failure
@@ -59,7 +60,11 @@ function App() {
         </section>
 
         <section
-          className="mt-16 rounded-lg border border-slate-800 py-16 text-center"
+          className={
+            search.status === 'success'
+              ? 'mt-16 rounded-lg border border-slate-800 p-6 text-left'
+              : 'mt-16 rounded-lg border border-slate-800 py-16 text-center'
+          }
           aria-label="Results"
           aria-live="polite"
         >
@@ -74,14 +79,7 @@ function App() {
           {search.status === 'error' && (
             <p className="text-sm text-slate-400">{search.message}</p>
           )}
-          {search.status === 'success' && (
-            <p className="text-sm text-slate-100">
-              {search.profile.display_name} — win rate:{' '}
-              {search.profile.stats.win_rate === null
-                ? 'no games recorded'
-                : `${search.profile.stats.win_rate}%`}
-            </p>
-          )}
+          {search.status === 'success' && <PlayerCard profile={search.profile} />}
         </section>
       </main>
     </div>
