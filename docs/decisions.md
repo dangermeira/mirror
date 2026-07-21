@@ -8,6 +8,17 @@ Format: **Date — Decision.** Options considered · why · what I learned.
 
 ---
 
+**2026-07-21 — Step 6: frontend error-copy pass-through; conscious deferrals.**
+Options for UI failure text: re-map `state` to frontend-owned copy vs pass the backend's
+`message` through. Chose pass-through: `STATE_META` stays the one home of failure copy,
+and the frontend adds only the two sentences the backend can't speak (unreachable, and an
+unreadable failure body). Deferred on purpose (recorded, not dropped): frontend runtime
+response validation (zod etc.) — `response_model` guarantees the wire shape and the TS
+types hold our code to it; `AbortController`/stale-response handling for rapid
+re-searches — the overlap window is small and same-key results are identical (revisit
+with Step 7 UX); username normalization beyond `.trim()` (still deferred from Step 4).
+Learned: an error message is data with one home — pass it along, never copy it.
+
 **2026-07-21 — Step 6: cache stampede closed with a per-key lock (Step-4 deferral).**
 Options: leave deferred · one global lock · per-key `asyncio.Lock` with double-checked
 caching · an in-flight future map. Chose the per-key lock + re-check: cache hits never
